@@ -1,18 +1,5 @@
 """
-This is the code behind the Switching Eds blog post:
-
-    http://matthewearl.github.io/2015/07/28/switching-eds-with-python/
-
-See the above for an explanation of the code below.
-
-To run the script you'll need to install dlib (http://dlib.net) including its
-Python bindings, and OpenCV. You'll also need to obtain the trained model from
-sourceforge:
-
-    http://sourceforge.net/projects/dclib/files/dlib/v18.10/shape_predictor_68_face_landmarks.dat.bz2
-
-Unzip with `bunzip2` and change `PREDICTOR_PATH` to refer to this file. The
-script is run like so:
+The script is run like so:
 
     ./faceswap.py <head image> <face image>
 
@@ -32,17 +19,18 @@ PREDICTOR_PATH = "training_data/shape_predictor_68_face_landmarks.dat"
 SCALE_FACTOR = 1
 FEATHER_AMOUNT = 11
 
-FACE_POINTS         = list( range( 17, 68 ) )
-MOUTH_POINTS        = list( range( 48, 61 ) )
-RIGHT_BROW_POINTS   = list( range( 17, 22 ) )
-LEFT_BROW_POINTS    = list( range( 22, 27 ) )
-RIGHT_EYE_POINTS    = list( range( 36, 42 ) )
-LEFT_EYE_POINTS     = list( range( 42, 48 ) )
-NOSE_POINTS         = list( range( 27, 35 ) )
-JAW_POINTS          = list( range( 0, 17 ) )
+FACE_POINTS = list(range(17, 68))
+MOUTH_POINTS = list(range(48, 61))
+RIGHT_BROW_POINTS = list(range(17, 22))
+LEFT_BROW_POINTS = list(range(22, 27))
+RIGHT_EYE_POINTS = list(range(36, 42))
+LEFT_EYE_POINTS = list(range(42, 48))
+NOSE_POINTS = list(range(27, 35))
+JAW_POINTS = list(range(0, 17))
 
 # Points used to line up the images.
-ALIGN_POINTS = ( LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS + RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS )
+ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS + RIGHT_BROW_POINTS 
+                + NOSE_POINTS + MOUTH_POINTS)
 
 # Points from the second image to overlay on the first. The convex hull of each
 # element will be overlaid.
@@ -56,7 +44,7 @@ OVERLAY_POINTS = [
 COLOUR_CORRECT_BLUR_FRAC = 0.6
 
 detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor( PREDICTOR_PATH )
+predictor = dlib.shape_predictor(PREDICTOR_PATH)
 
 class TooManyFaces(Exception):
     pass
@@ -64,15 +52,19 @@ class TooManyFaces(Exception):
 class NoFaces(Exception):
     pass
 
-def get_landmarks(im):
-    rects = detector(im, 1)
+def get_landmarks(image):
+    """Get coordinates of facial features."""
+    # The 1 in the second argument indicates that we should upsample the image
+    # 1 time.  This will make everything bigger and allow us to detect more
+    # faces.
+    rects = detector(image, 1)
     
     if len(rects) > 1:
         raise TooManyFaces
     if len(rects) == 0:
         raise NoFaces
 
-    return numpy.matrix([[p.x, p.y] for p in predictor(im, rects[0]).parts()])
+    return numpy.matrix([[p.x, p.y] for p in predictor(image, rects[0]).parts()])
 
 def annotate_landmarks(im, landmarks):
     im = im.copy()
