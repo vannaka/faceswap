@@ -14,7 +14,7 @@ To run the script you'll need to install a few things. If you already have a wor
   * Open the command prompt and execute the following commands:
 
     ```shell
-    conda createe --name opencv-env python=3.7
+    conda create --name opencv-env python=3.7
     activate opencv-env
     ```
 
