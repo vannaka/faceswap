@@ -29,7 +29,7 @@ NOSE_POINTS = list(range(27, 35))
 JAW_POINTS = list(range(0, 17))
 
 # Points used to line up the images.
-ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS + RIGHT_BROW_POINTS 
+ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS + RIGHT_BROW_POINTS
                 + NOSE_POINTS + MOUTH_POINTS)
 
 # Points from the second image to overlay on the first. The convex hull of each
@@ -66,36 +66,43 @@ def get_landmarks(image):
 
     return numpy.matrix([[p.x, p.y] for p in predictor(image, rects[0]).parts()])
 
-def annotate_landmarks(im, landmarks):
-    im = im.copy()
-    for idx, point in enumerate(landmarks):
-        pos = (point[0, 0], point[0, 1])
-        cv2.putText(im, str(idx), pos,
-                    fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
-                    fontScale=0.4,
-                    color=(0, 0, 255))
-        cv2.circle(im, pos, 3, color=(0, 255, 255))
-    return im
+# def annotate_landmarks(im, landmarks):
+#     im = im.copy()
+#     for idx, point in enumerate(landmarks):
+#         pos = (point[0, 0], point[0, 1])
+#         cv2.putText(im, str(idx), pos,
+#                     fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
+#                     fontScale=0.4,
+#                     color=(0, 0, 255))
+#         cv2.circle(im, pos, 3, color=(0, 255, 255))
+#     return im
 
 def draw_convex_hull(im, points, color):
     points = cv2.convexHull(points)
     cv2.fillConvexPoly(im, points, color=color)
 
 def get_face_mask(im, landmarks):
+    """Take image and landmarks and creates a mask of the eyes, nose, brows and mouth."""
+    # Create image of all zeros.
     im = numpy.zeros(im.shape[:2], dtype=numpy.float64)
 
+    # Draw two convex polygons in white.
+    #   One around the eye area and one around the nose and mouth area.
     for group in OVERLAY_POINTS:
         draw_convex_hull(im,
                          landmarks[group],
                          color=1)
 
+    # Convert image to rgb from grayscale.
     im = numpy.array([im, im, im]).transpose((1, 2, 0))
+    #im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
 
+    # Blur the image to hide any discontinuities between the two convex hulls generated above.
     im = (cv2.GaussianBlur(im, (FEATHER_AMOUNT, FEATHER_AMOUNT), 0) > 0) * 1.0
     im = cv2.GaussianBlur(im, (FEATHER_AMOUNT, FEATHER_AMOUNT), 0)
 
     return im
-    
+
 def transformation_from_points(points1, points2):
     """
     Return an affine transformation [s * R | T] such that:
@@ -186,4 +193,3 @@ warped_corrected_im2 = correct_colours(im1, warped_im2, landmarks1)
 output_im = im1 * (1.0 - combined_mask) + warped_corrected_im2 * combined_mask
 
 cv2.imwrite('output.jpg', output_im)
-
