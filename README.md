@@ -4,7 +4,7 @@ This python script will take two images, with a single head in each, and take th
 
 ## Environment Setup
 
-To run the script you'll need to install a few things. If you already have a working python 3 install then skip to step 3.
+To run the script you'll need to install a few things.
 
 ### 1. Install Visual Studio Build Tools
   * Download Visual Studio Build Tools [here](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15).
