@@ -71,8 +71,9 @@ def main():
     landmarks_two = get_landmarks(image_two)
 
     # Get the translation matrix to align the face in image two to the face in image one
-    trans_matrix = transformation_from_points(landmarks_one[ALIGN_POINTS],
-                                              landmarks_two[ALIGN_POINTS])
+    # trans_matrix = transformation_from_points(landmarks_one[ALIGN_POINTS],
+    #                                           landmarks_two[ALIGN_POINTS])
+    trans_matrix = get_trans_matrix(landmarks_one, landmarks_two)
 
     # Get a mask of the faces in both images
     mask_one = get_face_mask(image_one, landmarks_one)
@@ -95,16 +96,16 @@ def main():
     output_im = (image_one * (1.0 - combined_mask)) + (warped_corrected_im2 * combined_mask)
 
     DIR = 'Results_1'
-    cv2.imwrite('Images/' + DIR + '/output.jpg', output_im)
+    cv2.imwrite('Images/output.jpg', output_im)
 
-    cv2.imwrite('Images/' + DIR + '/landmarks_image_1.jpg', annotate_landmarks(image_one, landmarks_one))
-    cv2.imwrite('Images/' + DIR + '/landmarks_image_2.jpg', annotate_landmarks(image_two, landmarks_two))
+    # cv2.imshow('Images/' + DIR + '/landmarks_image_1.jpg', annotate_landmarks(image_one, landmarks_one))
+    # cv2.imshow('Images/' + DIR + '/landmarks_image_2.jpg', annotate_landmarks(image_two, landmarks_two))
 
-    cv2.imwrite('Images/' + DIR + '/mask_1.jpg', mask_one * 255)
-    cv2.imwrite('Images/' + DIR + '/mask_2.jpg', mask_two * 255)
-    cv2.imwrite('Images/' + DIR + '/warped_mask_2.jpg', warped_mask_two * 255)
+    # cv2.imshow('Images/' + DIR + '/mask_1.jpg', mask_one * 255)
+    # cv2.imshow('Images/' + DIR + '/mask_2.jpg', mask_two * 255)
+    # cv2.imshow('Images/' + DIR + '/warped_mask_2.jpg', warped_mask_two * 255)
 
-    cv2.imwrite('Images/' + DIR + '/warped_image_2.jpg', warped_image_two)
+    # cv2.imshow('Images/' + DIR + '/warped_image_2.jpg', warped_image_two)
 
     # cv2.waitKey(0)
 
@@ -203,50 +204,64 @@ def get_face_mask(im, landmarks):
 #------------------------------------------------------------------------------
 #   transformation_from_points
 #------------------------------------------------------------------------------
-def transformation_from_points(points1, points2):
-    """
-    Calculates a transformation matix that will allow us to aline our two images
-    in such a way that the two faces will line up when overlayed.
+# def transformation_from_points(points1, points2):
+#     """
+#     Calculates a transformation matix that will allow us to aline our two images
+#     in such a way that the two faces will line up when overlayed.
 
-    Return an affine transformation [s * R | T] such that:
+#     Return an affine transformation [s * R | T] such that:
 
-        sum ||s*R*p1,i + T - p2,i||^2
+#         sum ||s*R*p1,i + T - p2,i||^2
 
-    is minimized.
-    """
-    # Solve the procrustes problem by subtracting centroids, scaling by the
-    # standard deviation, and then using the SVD to calculate the rotation. See
-    # the following for more details:
-    #   https://en.wikipedia.org/wiki/Orthogonal_Procrustes_problem
+#     is minimized.
+#     """
+#     # Solve the procrustes problem by subtracting centroids, scaling by the
+#     # standard deviation, and then using the SVD to calculate the rotation. See
+#     # the following for more details:
+#     #   https://en.wikipedia.org/wiki/Orthogonal_Procrustes_problem
 
-    points1 = points1.astype(numpy.float64)
-    points2 = points2.astype(numpy.float64)
+#     points1 = points1.astype(numpy.float64)
+#     points2 = points2.astype(numpy.float64)
 
-    # Calculate centroids for each set of points
-    c1 = numpy.mean(points1, axis=0)
-    c2 = numpy.mean(points2, axis=0)
+#     # Calculate centroids for each set of points
+#     c1 = numpy.mean(points1, axis=0)
+#     c2 = numpy.mean(points2, axis=0)
 
-    # Subtract centroids from each point
-    points1 -= c1
-    points2 -= c2
+#     # Subtract centroids from each point
+#     points1 -= c1
+#     points2 -= c2
 
-    # Scale by the standard deviation
-    s1 = numpy.std(points1)
-    s2 = numpy.std(points2)
-    points1 /= s1
-    points2 /= s2
+#     # Scale by the standard deviation
+#     s1 = numpy.std(points1)
+#     s2 = numpy.std(points2)
+#     points1 /= s1
+#     points2 /= s2
 
-    U, S, Vt = numpy.linalg.svd(points1.T * points2)
+#     U, S, Vt = numpy.linalg.svd(points1.T * points2)
 
-    # The R we seek is in fact the transpose of the one given by U * Vt. This
-    # is because the above formulation assumes the matrix goes on the right
-    # (with row vectors) where as our solution requires the matrix to be on the
-    # left (with column vectors).
-    R = (U * Vt).T
+#     # The R we seek is in fact the transpose of the one given by U * Vt. This
+#     # is because the above formulation assumes the matrix goes on the right
+#     # (with row vectors) where as our solution requires the matrix to be on the
+#     # left (with column vectors).
+#     R = (U * Vt).T
 
-    return numpy.vstack([numpy.hstack(((s2 / s1) * R, c2.T - (s2 / s1) * R * c1.T)),
-                         numpy.matrix([0., 0., 1.])])
+#     return numpy.vstack([numpy.hstack(((s2 / s1) * R, c2.T - (s2 / s1) * R * c1.T)),
+#                          numpy.matrix([0., 0., 1.])])
 
+
+def get_trans_matrix(points1, points2):
+    points1 = points1.astype(numpy.float32)
+    points2 = points2.astype(numpy.float32)
+
+    src = numpy.array([numpy.mean(points1[LEFT_EYE_POINTS], axis=0),
+           numpy.mean(points1[RIGHT_EYE_POINTS], axis=0),
+           numpy.mean(points1[MOUTH_POINTS], axis=0)])
+
+    dst = numpy.array([numpy.mean(points2[LEFT_EYE_POINTS], axis=0),
+           numpy.mean(points2[RIGHT_EYE_POINTS], axis=0),
+           numpy.mean(points2[MOUTH_POINTS], axis=0)])
+
+    return cv2.getAffineTransform(src, dst)
 
 #------------------------------------------------------------------------------
 #   warp_im
