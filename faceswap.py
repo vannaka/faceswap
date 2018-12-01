@@ -50,6 +50,8 @@ DETECTOR = dlib.get_frontal_face_detector()
 PREDICTOR = dlib.shape_predictor(PREDICTOR_PATH)
 
 
+
+
 #------------------------------------------------------------------------------
 #   Main Method
 #------------------------------------------------------------------------------
@@ -62,18 +64,70 @@ def main():
 
     """
 
+    # Video source
+    VIDEO = cv2.VideoCapture(0)
+
     # Read in the images
     image_one = get_image(sys.argv[1])
-    image_two = get_image(sys.argv[2])
+    image_one = cv2.resize(image_one, None, fx=0.25, fy=0.25, interpolation=cv2.INTER_LINEAR)
+
+    while True:
+        ret, frame = VIDEO.read()
+
+        # Reduce image size by 25% to reduce processing time and improve framerates
+        frame = cv2.resize(frame, None, fx=0.75, fy=0.75, interpolation=cv2.INTER_LINEAR)
+
+        # flip image so that it's more mirror like
+        frame = cv2.flip(frame, 1)
+
+        # Swap the faces
+        output_im = swap_faces(frame, image_one)
+
+        # Show the swapped faces
+        cv2.imshow('FaceSwaper TM', output_im)
+
+        # cv2.imshow('Camera feed', frame)
+        
+        if cv2.waitKey(1) == 13: #13 is the Enter Key
+            break
+
+    # Cleanup
+    VIDEO.release()
+    cv2.destroyAllWindows()
+
+#------------------------------------------------------------------------------
+#   EXCEPTIONS
+#------------------------------------------------------------------------------
+class NoFaces(Exception):
+    """Exception raised if there are no faces in a given image."""
+    pass
+
+
+#------------------------------------------------------------------------------
+#   Swap faces
+#------------------------------------------------------------------------------
+def swap_faces(image_one, image_two):
+    """Swap one set of faces in the input images"""
 
     # Get the locations of facial features
-    landmarks_one = get_landmarks(image_one)
-    landmarks_two = get_landmarks(image_two)
+    try:
+        landmarks_one = get_landmarks(image_one)
+    except NoFaces:
+        print("No faces detected in image one")
+        image_one = cv2.resize(image_one, None, fx=1.33, fy=1.33, interpolation=cv2.INTER_LINEAR)
+        return image_one
+
+    try:
+        landmarks_two = get_landmarks(image_two)
+    except NoFaces:
+        print("No faces detected in image two")
+        image_one = cv2.resize(image_one, None, fx=1.33, fy=1.33, interpolation=cv2.INTER_LINEAR)
+        return image_one
 
     # Get the translation matrix to align the face in image two to the face in image one
+    trans_matrix = get_trans_matrix(landmarks_one, landmarks_two)
     # trans_matrix = transformation_from_points(landmarks_one[ALIGN_POINTS],
     #                                           landmarks_two[ALIGN_POINTS])
-    trans_matrix = get_trans_matrix(landmarks_one, landmarks_two)
 
     # Get a mask of the faces in both images
     mask_one = get_face_mask(image_one, landmarks_one)
@@ -86,7 +140,7 @@ def main():
     #   both faces when they are overlaid.
     combined_mask = numpy.max([mask_one, warped_mask_two], axis=0)
 
-    # Translate image two such that its' face aligns with the face in image one
+    # Translate image two such that its face aligns with the face in image one
     warped_image_two = warp_image(image_two, trans_matrix, image_one.shape)
 
     # Correct color of seconod image so the facial colors match
@@ -95,26 +149,14 @@ def main():
     # Combine the face from image two with image one
     output_im = (image_one * (1.0 - combined_mask)) + (warped_corrected_im2 * combined_mask)
 
-    DIR = 'Results_1'
-    cv2.imwrite('Images/output.jpg', output_im)
+    # Convert to proper format
+    output_im = (254 * (output_im - output_im.min())) / (output_im.max() - output_im.min())
+    output_im = output_im.astype(numpy.uint8)
 
-    # cv2.imshow('Images/' + DIR + '/landmarks_image_1.jpg', annotate_landmarks(image_one, landmarks_one))
-    # cv2.imshow('Images/' + DIR + '/landmarks_image_2.jpg', annotate_landmarks(image_two, landmarks_two))
+    # Upscale since the passed in images were downscaled to 75%
+    output_im = cv2.resize(output_im, None, fx=1.33, fy=1.33, interpolation=cv2.INTER_LINEAR)
 
-    # cv2.imshow('Images/' + DIR + '/mask_1.jpg', mask_one * 255)
-    # cv2.imshow('Images/' + DIR + '/mask_2.jpg', mask_two * 255)
-    # cv2.imshow('Images/' + DIR + '/warped_mask_2.jpg', warped_mask_two * 255)
-
-    # cv2.imshow('Images/' + DIR + '/warped_image_2.jpg', warped_image_two)
-
-    # cv2.waitKey(0)
-
-#------------------------------------------------------------------------------
-#   EXCEPTIONS
-#------------------------------------------------------------------------------
-class NoFaces(Exception):
-    """Exception raised if there are no faces in a given image."""
-    pass
+    return output_im
 
 
 #------------------------------------------------------------------------------
@@ -199,54 +241,6 @@ def get_face_mask(im, landmarks):
     im = cv2.GaussianBlur(im, (FEATHER_AMOUNT, FEATHER_AMOUNT), 0)
 
     return im
-
-
-#------------------------------------------------------------------------------
-#   transformation_from_points
-#------------------------------------------------------------------------------
-# def transformation_from_points(points1, points2):
-#     """
-#     Calculates a transformation matix that will allow us to aline our two images
-#     in such a way that the two faces will line up when overlayed.
-
-#     Return an affine transformation [s * R | T] such that:
-
-#         sum ||s*R*p1,i + T - p2,i||^2
-
-#     is minimized.
-#     """
-#     # Solve the procrustes problem by subtracting centroids, scaling by the
-#     # standard deviation, and then using the SVD to calculate the rotation. See
-#     # the following for more details:
-#     #   https://en.wikipedia.org/wiki/Orthogonal_Procrustes_problem
-
-#     points1 = points1.astype(numpy.float64)
-#     points2 = points2.astype(numpy.float64)
-
-#     # Calculate centroids for each set of points
-#     c1 = numpy.mean(points1, axis=0)
-#     c2 = numpy.mean(points2, axis=0)
-
-#     # Subtract centroids from each point
-#     points1 -= c1
-#     points2 -= c2
-
-#     # Scale by the standard deviation
-#     s1 = numpy.std(points1)
-#     s2 = numpy.std(points2)
-#     points1 /= s1
-#     points2 /= s2
-
-#     U, S, Vt = numpy.linalg.svd(points1.T * points2)
-
-#     # The R we seek is in fact the transpose of the one given by U * Vt. This
-#     # is because the above formulation assumes the matrix goes on the right
-#     # (with row vectors) where as our solution requires the matrix to be on the
-#     # left (with column vectors).
-#     R = (U * Vt).T
-
-#     return numpy.vstack([numpy.hstack(((s2 / s1) * R, c2.T - (s2 / s1) * R * c1.T)),
-#                          numpy.matrix([0., 0., 1.])])
 
 
 def get_trans_matrix(points1, points2):
