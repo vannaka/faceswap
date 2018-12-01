@@ -44,7 +44,7 @@ OVERLAY_POINTS = [
 
 # Amount of blur to use during color correction, as a fraction of the
 # pupillary distance.
-COLOR_CORRECT_BLUR_FRAC = 0.6
+COLOR_CORRECT_BLUR_FRAC = 0.5
 
 DETECTOR = dlib.get_frontal_face_detector()
 PREDICTOR = dlib.shape_predictor(PREDICTOR_PATH)
@@ -126,8 +126,6 @@ def swap_faces(image_one, image_two):
 
     # Get the translation matrix to align the face in image two to the face in image one
     trans_matrix = get_trans_matrix(landmarks_one, landmarks_two)
-    # trans_matrix = transformation_from_points(landmarks_one[ALIGN_POINTS],
-    #                                           landmarks_two[ALIGN_POINTS])
 
     # Get a mask of the faces in both images
     mask_one = get_face_mask(image_one, landmarks_one)
@@ -209,7 +207,9 @@ def get_image(fname):
 #   draw_convex_hull
 #------------------------------------------------------------------------------
 def draw_convex_hull(im, points, color):
-    """"""
+    """
+    Draw an outline of the points and fill it in.
+    """
     points = cv2.convexHull(points)
     cv2.fillConvexPoly(im, points, color=color)
 
@@ -282,7 +282,10 @@ def warp_image(image, trans_matrix, dshape):
 #   correct_colors
 #------------------------------------------------------------------------------
 def correct_colors(im1, im2, landmarks1):
-    """"""
+    """
+    Make the donor face color match the recipient face color.
+    """
+
     blur_amount = COLOR_CORRECT_BLUR_FRAC * numpy.linalg.norm(
         numpy.mean(landmarks1[LEFT_EYE_POINTS], axis=0) -
         numpy.mean(landmarks1[RIGHT_EYE_POINTS], axis=0))
